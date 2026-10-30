@@ -19,16 +19,26 @@ def search_documents(query, chunks, embeddings, top_k=5):
     if resp.status_code != 200:
         print("向量化失败")
         return []
+
     query_emb = resp.output["embeddings"][0]["embedding"]
 
     scores = []
     for i, emb in enumerate(embeddings):
         score = cosine_similarity(query_emb, emb)
         scores.append((score, i))
+
     scores.sort(reverse=True)
 
-    return [chunks[idx] for _, idx in scores[:top_k]]
+    # 1. 先取出常规的 Top-K
+    retrieved_chunks = [chunks[idx] for _, idx in scores[:top_k]]
 
+    # 2. 混合检索兜底：如果问作者/邮箱，强行把第一块插进去
+    if "作者" in query or "author" in query.lower() or "邮箱" in query:
+        if chunks[0] not in retrieved_chunks:
+            retrieved_chunks.insert(0, chunks[0])
+
+    # 3. 确保绝对返回一个列表
+    return retrieved_chunks
 
 def cosine_similarity(a, b):
     dot = sum(x * y for x, y in zip(a, b))
@@ -84,7 +94,8 @@ def read_image(image_path):
             "role": "user",
             "content": [
                 {"image": f"file://{image_path}"},
-                {"text": "请描述这张图片的内容，如果有文字请提取出来。"}
+                {
+                    "text": "请精确提取图片中的所有文字（OCR）。如果是英文，请严格保留英文原文，绝对不要翻译成中文。如果是表格，请用Markdown格式输出。"}
             ]
         }
     ]

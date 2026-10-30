@@ -1,4 +1,6 @@
 streamlit
-pypdf
-python-dotenv
 dashscope
+python-dotenv
+pypdf
+pdfplumber
+pymupdf
